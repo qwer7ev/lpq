@@ -4,6 +4,10 @@ import { generateIdArray } from "./generateIdArray";
 
 let testNum = 0;
 
+export function resetTestNum() {
+  testNum = 0;
+}
+
 export interface GeneratedPlateData {
   id: number;
   plate: string;

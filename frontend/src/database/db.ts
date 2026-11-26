@@ -19,10 +19,30 @@ export const rangesTB: any = {
   all: [1, 428],
 };
 
+export const timeAndScoreTB: any = {
+  B: { score: 18, time: 126, name: "Podlaskie" },
+  C: { score: 22, time: 154, name: "Kujawsko - Pomorskie" },
+  D: { score: 32, time: 224, name: "Dolnośląskie" },
+  E: { score: 25, time: 175, name: "Łódzkie" },
+  F: { score: 14, time: 98, name: "Lubuskie" },
+  G: { score: 24, time: 168, name: "Pomorskie" },
+  K: { score: 25, time: 175, name: "Małopolskie" },
+  L: { score: 24, time: 168, name: "Lubelskie" },
+  N: { score: 21, time: 147, name: "Warmińsko - Mazurskie" },
+  O: { score: 12, time: 84, name: "Opolskie" },
+  P: { score: 39, time: 273, name: "Wielkopolskie" },
+  R: { score: 28, time: 196, name: "Podkarpackie" },
+  S: { score: 43, time: 301, name: "Śląskie" },
+  T: { score: 14, time: 98, name: "Świętokrzyskie" },
+  W: { score: 47, time: 329, name: "Mazowieckie" },
+  Z: { score: 22, time: 154, name: "Zachodniopomorskie" },
+  X: { score: 18, time: 126, name: "Dzielnice Warszawy" },
+  all: { score: 428, time: 2996, name: "Wszystkie" },
+};
 // ? - any letter
 // # - any number
 // * - any character
-// $ - any numb EXCEPT 0
+// $ - any number EXCEPT 0
 const standard4 = [
   "?###",
   "##??",

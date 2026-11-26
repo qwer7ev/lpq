@@ -16,6 +16,18 @@
   font-weight: 700;
 }
 
+.score-th {
+  background-color: #dbeafe;
+  border: 1px solid #d1d5db;
+  padding: 0.5rem;
+  width: 13rem;
+}
+
+.score-td {
+  border: 1px solid #d1d5db;
+  padding: 0.5rem;
+}
+
 body {
   margin: 0;
   background-color: #f5f3ff;

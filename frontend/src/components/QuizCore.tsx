@@ -1,17 +1,36 @@
 import { useEffect, useState, useRef } from "react";
-import generatePlates, { type GeneratedPlateData } from "@/functions/generatePlate";
+import generatePlates, {
+  type GeneratedPlateData,
+  resetTestNum,
+} from "@/functions/generatePlate";
+import { timeAndScoreTB } from "@/database/db";
+import { createEmptyScores, type UserScores } from "@/functions/scoreLogic";
 import LicensePlate from "./LicensePlate";
 
-export default function QuizCore(props: {
+interface QuizCoreProps {
   gamemode?: string;
+  params?: string;
   onHome?: () => void;
-}) {
-  const gamemode = props.gamemode || "allRandom";
+  onProfile?: () => void;
+  onFinishGame?: (gameScores: UserScores) => void;
+}
 
+/*
+  Komponent QuizCore - dokladna struktura i klasy ze STARY_PROJEKT,
+  z poprawionymi wyciekami pamieci w timerze.
+*/
+export default function QuizCore({
+  gamemode = "allRandom",
+  params = "",
+  onHome,
+  onProfile,
+  onFinishGame,
+}: QuizCoreProps) {
   const [buttonState, setButtonState] = useState(0);
+  const [gameEndPopupVisibility, setGameEndPopupVisibility] = useState(false);
   const [generatedPlates, setGeneratedPlates] = useState<GeneratedPlateData>({
     id: 0,
-    plate: "--- ----",
+    plate: "*** ****",
     voigroup: "",
     city: "",
     platesQuantity: 0,
@@ -25,8 +44,17 @@ export default function QuizCore(props: {
   const [timerAllTime, setTimerAllTime] = useState(0);
   const [timerAllIsRunning, setTimerAllIsRunning] = useState(false);
 
+  const [gameUserData, setGameUserData] = useState<UserScores>(createEmptyScores());
   const answerInputRef = useRef<HTMLInputElement>(null);
 
+  const voisArr = params ? params.split("") : [];
+  const isTestMode = gamemode === "voivodeshipsTest" || gamemode === "allTest";
+
+  useEffect(() => {
+    resetTestNum();
+  }, [gamemode, params]);
+
+  // Timer bez wyciekow pamieci
   useEffect(() => {
     if (!timerAllIsRunning) return;
 
@@ -40,7 +68,6 @@ export default function QuizCore(props: {
   const timerAllMinutes = Math.floor(timerAllTime / 60);
   const timerAllSeconds = Math.floor(timerAllTime % 60);
 
-
   const normalizeCity = (text: string) => {
     return (text || "")
       .replaceAll(/\s/g, "")
@@ -53,6 +80,13 @@ export default function QuizCore(props: {
       .replaceAll("-", "");
   };
 
+  const finishGame = (finalUserData: UserScores) => {
+    setTimerAllIsRunning(false);
+    setGameEndPopupVisibility(true);
+    if (onFinishGame) {
+      onFinishGame(finalUserData);
+    }
+  };
 
   function nextPlate(isAnswerCorrect: boolean) {
     if (buttonState !== 1) setButtonState(1);
@@ -64,7 +98,29 @@ export default function QuizCore(props: {
       setNumberOfIncorrectAnswers((prev) => prev + 1);
     }
 
-    const nextPlateData = generatePlates(gamemode, "");
+    const currentVoi = generatedPlates.voigroup;
+    const timePropName = "time_" + currentVoi;
+    const scorePropName = "score_" + currentVoi;
+    const updatedUserData: UserScores = {
+      ...gameUserData,
+      [scorePropName]: isAnswerCorrect
+        ? (gameUserData[scorePropName] || 0) + 1
+        : gameUserData[scorePropName] || 0,
+      [timePropName]: timerAllTime,
+      score_all: isAnswerCorrect
+        ? (gameUserData.score_all || 0) + 1
+        : gameUserData.score_all || 0,
+      time_all: timerAllTime,
+    };
+    setGameUserData(updatedUserData);
+
+    const totalCount = generatedPlates.platesQuantity || 0;
+    if (isTestMode && totalCount > 0 && numberOfQuestion >= totalCount) {
+      finishGame(updatedUserData);
+      return;
+    }
+
+    const nextPlateData = generatePlates(gamemode, params);
     setGeneratedPlates(nextPlateData);
     setNumberOfQuestion((prev) => prev + 1);
 
@@ -87,9 +143,10 @@ export default function QuizCore(props: {
   const buttonHandler = () => {
     switch (buttonState) {
       case 0: {
+        resetTestNum();
         setTimerAllIsRunning(true);
         setButtonState(1);
-        const initialPlate = generatePlates(gamemode, "");
+        const initialPlate = generatePlates(gamemode, params);
         setGeneratedPlates(initialPlate);
         setNumberOfQuestion(1);
         if (answerInputRef.current) {
@@ -113,56 +170,137 @@ export default function QuizCore(props: {
     }
   };
 
+  const EGplayAgain = () => {
+    resetTestNum();
+    setGameEndPopupVisibility(false);
+    setButtonState(0);
+    setNumberOfCorrectAnswers(0);
+    setNumberOfIncorrectAnswers(0);
+    setNumberOfQuestion(0);
+    setTimerAllTime(0);
+    setTimerAllIsRunning(false);
+    setGameUserData(createEmptyScores());
+    setGeneratedPlates({
+      id: 0,
+      plate: "*** ****",
+      voigroup: "",
+      city: "",
+      platesQuantity: 0,
+      lastid: 0,
+    });
+  };
+
+  const EGhome = () => {
+    if (onHome) onHome();
+  };
+
+  const EGprofile = () => {
+    if (onProfile) onProfile();
+  };
+
   return (
-    <div
-      className="min-h-screen w-full bg-violet-50 flex flex-col justify-between p-4 md:p-8"
-      onKeyDown={(e) => {
-        if (e.key === "Enter" && !(e.target as HTMLElement).closest("button")) {
-          buttonHandler();
+    <>
+      {gameEndPopupVisibility && (
+        <div className="rounded-xl bg-violet-400 uppercase font-bold text-white text-center fixed inset-0 z-50">
+          <div className="w-screen h-screen absolute bg-black/50 top-0 left-0"></div>
+          <section className="w-10/12 h-4/6 absolute bg-white rounded-3xl left-[8.33%] top-[16.66%]">
+            <p className="text-7xl text-violet-500 mt-4 mb-8">🎉 KONIEC 🎉</p>
+            <p className="text-6xl text-violet-400 my-4">
+              Wynik:{" "}
+              <span
+                className={
+                  numberOfCorrectAnswers === generatedPlates.platesQuantity
+                    ? "text-[#c0ae47]"
+                    : "text-violet-400"
+                }
+              >
+                {numberOfCorrectAnswers}/{generatedPlates.platesQuantity || numberOfQuestion}
+              </span>
+            </p>
+            <div>
+              <p className="text-6xl text-violet-400 my-4">
+                CZAS: {timerAllMinutes.toString().padStart(2, "0")}:
+                {timerAllSeconds.toString().padStart(2, "0")}
+              </p>
+            </div>
+            <div className="text-black flex mx-auto">
+              <div className="mx-auto flex flex-wrap justify-center">
+                {voisArr.map((voi: string, index: number) => (
+                  <p className="mx-2" key={index}>
+                    {timeAndScoreTB[voi]?.name}: {gameUserData["score_" + voi] || 0}
+                    /{timeAndScoreTB[voi]?.score}
+                  </p>
+                ))}
+              </div>
+            </div>
+            <div className="w-full">
+              <progress value={0.5} className="my-4 w-[90%] h-8 mx-[5%]" />
+            </div>
+
+            <div className="bottom-0 absolute w-full">
+              <button
+                className="w-[90%] text-white bg-violet-400 hover:bg-violet-300 mx-4 text-4xl rounded-2xl py-2 cursor-pointer"
+                onClick={EGplayAgain}
+              >
+                ZAGRAJ PONOWNIE
+              </button>
+              <div className="flex">
+                <button
+                  className="w-[50%] text-white bg-violet-400 hover:bg-violet-300 ml-[5%] mr-1 text-3xl my-4 rounded-2xl py-2 cursor-pointer"
+                  onClick={EGhome}
+                >
+                  WRÓĆ NA STRONĘ GŁÓWNĄ
+                </button>
+                <button
+                  className="w-[50%] text-white bg-violet-400 hover:bg-violet-300 mr-[5%] text-3xl my-4 rounded-2xl py-2 cursor-pointer"
+                  onClick={EGprofile}
+                >
+                  PRZEJDŹ DO PROFILU
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+
+      <div
+        className="grid grid-cols-6 w-screen h-screen content-center justify-items-center bg-violet-50"
+        onKeyDown={(e) =>
+          timerAllIsRunning ? (e.key === "Enter" ? buttonHandler() : null) : null
         }
-      }}
-    >
-      <header className="w-full flex justify-between items-center mb-6 max-w-6xl mx-auto">
-        <button
-          onClick={props.onHome}
-          className="text-lg md:text-xl font-bold uppercase bg-violet-300 hover:bg-violet-400 text-white px-5 py-2 rounded-xl transition-colors cursor-pointer"
-        >
-          wroc na strone główną
-        </button>
-      </header>
+      >
+        <section className="col-span-1 w-full">
+          <button
+            onClick={EGhome}
+            className="m-4 text-xl font-bold uppercase bg-violet-400 hover:bg-violet-300 text-white px-4 py-2 rounded-xl cursor-pointer"
+          >
+            ← Menu
+          </button>
+        </section>
 
-      <main className="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8 items-center flex-1">
-        <section className="lg:col-span-3 flex flex-col items-center justify-center w-full">
-          <div className="w-full flex justify-center mb-6">
-            <LicensePlate plate={generatedPlates.plate} />
-          </div>
-
-          <div className="w-full max-w-2xl flex flex-col items-center">
+        <section className="col-span-4 w-9/12">
+          <LicensePlate plate={generatedPlates.plate} />
+          <div className="my-4 w-4/12a flexa ml-4/12a">
             <input
               type="text"
-              disabled={buttonState === 0}
-              placeholder="Wpisz miasto"
-              className="w-full border-4 border-black rounded-2xl text-3xl sm:text-4xl md:text-5xl p-4 text-center bg-white shadow-md focus:outline-none focus:ring-4 focus:ring-violet-400 transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="w-full border-2 border-black rounded-xl text-6xl p-2 bg-white"
               onChange={handleUserAnswer}
               ref={answerInputRef}
             />
-
             <button
-              className="w-full text-2xl md:text-3xl rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-98 py-3 my-4 uppercase font-bold text-white shadow-lg transition-all cursor-pointer"
+              className="w-full text-2xl rounded-xl bg-violet-400 hover:bg-violet-500 py-1 my-2 uppercase font-bold text-white cursor-pointer"
               onClick={buttonHandler}
             >
               {buttonState === 0 && <span>Start</span>}
-              {buttonState === 1 && <span>Nie wiem</span>}
+              {buttonState === 1 && <span>nie wiem</span>}
               {buttonState === 2 && <span>Nastepny</span>}
             </button>
-
-            <div className="w-full min-h-[5rem] my-2">
+            <div className="w-full text-2xl h-14 my-2">
               {correctAnswerVisibility && (
-                <div className="rounded-2xl bg-violet-400 p-4 uppercase font-bold text-white text-center shadow-md">
-                  <p className="text-sm md:text-base opacity-90">
+                <div className="rounded-xl bg-violet-400 uppercase font-bold text-white text-center py-2">
+                  <p>
                     Prawidłowa odpowiedź to:
-                  </p>
-                  <p className="text-2xl md:text-3xl mt-1">
+                    <br />
                     {generatedPlates.city}
                   </p>
                 </div>
@@ -171,49 +309,63 @@ export default function QuizCore(props: {
           </div>
         </section>
 
-        <section className="lg:col-span-1 flex flex-col gap-4 w-full max-w-sm mx-auto">
-          <div className="w-full bg-blue-600 text-white text-center rounded-2xl p-4 shadow-md">
-            <p className="text-4xl md:text-5xl font-bold py-2">
-              {numberOfQuestion}
-            </p>
-            <hr className="opacity-30 my-2" />
-            <p className="text-xs uppercase tracking-wider font-semibold">
-              Pytanie
-            </p>
-          </div>
-
-          <div className="w-full bg-violet-600 text-white text-center rounded-2xl p-4 shadow-md">
-            <p className="text-4xl md:text-5xl font-bold font-rdmn py-2">
-              {timerAllMinutes.toString().padStart(2, "0")}:
-              {timerAllSeconds.toString().padStart(2, "0")}
-            </p>
-            <hr className="opacity-30 my-2" />
-            <p className="text-xs uppercase tracking-wider font-semibold">
-              Czas
-            </p>
-          </div>
-
-          <div className="w-full bg-green-600 text-white text-center rounded-2xl p-4 shadow-md">
-            <p className="text-5xl md:text-6xl font-bold py-2">
-              {numberOfCorrectAnswers}
-            </p>
-            <hr className="opacity-30 my-2" />
-            <p className="text-xs uppercase tracking-wider font-semibold">
-              Dobre odpowiedzi
-            </p>
-          </div>
-
-          <div className="w-full bg-red-600 text-white text-center rounded-2xl p-4 shadow-md">
-            <p className="text-5xl md:text-6xl font-bold py-2">
-              {numberOfIncorrectAnswers}
-            </p>
-            <hr className="opacity-30 my-2" />
-            <p className="text-xs uppercase tracking-wider font-semibold">
-              Złe odpowiedzi
-            </p>
+        <section className="col-span-1 w-full">
+          <div>
+            {(gamemode === "voivodeshipsTest" || gamemode === "allTest") && (
+              <>
+                <div className="w-8/12 bg-violet-600 text-white text-center rounded-xl mx-auto my-2">
+                  <p className="text-4xl py-12">
+                    {numberOfCorrectAnswers}/{generatedPlates.platesQuantity}
+                  </p>
+                  <hr className="mx-1" />
+                  <p className="text-sm uppercase">wynik</p>
+                </div>
+                <div className="w-8/12 bg-blue-600 text-white text-center rounded-xl mx-auto my-2">
+                  <p className="text-4xl py-12">
+                    {numberOfQuestion}/{generatedPlates.platesQuantity}
+                  </p>
+                  <hr className="mx-1" />
+                  <p className="text-sm uppercase">id pytania</p>
+                </div>
+              </>
+            )}
+            <div className="w-full bg-violet-600 text-white text-center rounded-xl mx-auto my-2">
+              <p className="text-6xl py-8">
+                {timerAllMinutes.toString().padStart(2, "0")}:
+                {timerAllSeconds.toString().padStart(2, "0")}
+              </p>
+              <hr className="mx-1" />
+              <p className="text-sm uppercase">czas</p>
+            </div>
+            <div className="w-8/12 bg-green-600 text-white text-center rounded-xl mx-auto my-2">
+              <p
+                className={
+                  numberOfCorrectAnswers > 99
+                    ? "text-7xl py-8"
+                    : "text-8xl py-4"
+                }
+              >
+                {numberOfCorrectAnswers}
+              </p>
+              <hr className="mx-1" />
+              <p className="text-sm uppercase">dobre odpowiedzi</p>
+            </div>
+            <div className="w-8/12 bg-red-600 text-white text-center rounded-xl mx-auto my-2">
+              <p
+                className={
+                  numberOfIncorrectAnswers > 99
+                    ? "text-7xl py-8"
+                    : "text-8xl py-4"
+                }
+              >
+                {numberOfIncorrectAnswers}
+              </p>
+              <hr className="mx-1" />
+              <p className="text-sm uppercase">złe odpowiedzi</p>
+            </div>
           </div>
         </section>
-      </main>
-    </div>
+      </div>
+    </>
   );
 }

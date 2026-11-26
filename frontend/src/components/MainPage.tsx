@@ -1,42 +1,63 @@
 import MainPageBanner from "./MainPageBanner";
 
-export default function MainPage(props: { onStartGame: () => void }) {
+export type GamemodeType =
+  | "allTest"
+  | "allRandom"
+  | "voivodeshipsTest"
+  | "voivodeshipsRandom";
+
+interface MainPageProps {
+  onSelectMode: (mode: GamemodeType) => void;
+}
+
+/*
+  Strona glowna aplikacji - dokladne UI/UX ze STARY_PROJEKT.
+*/
+export default function MainPage({ onSelectMode }: MainPageProps) {
+  const links = [
+    {
+      key: 1,
+      text: "wszystkie: test",
+      mode: "allTest" as const,
+    },
+    {
+      key: 2,
+      text: "wszystkie: losowo",
+      mode: "allRandom" as const,
+    },
+    {
+      key: 3,
+      text: "wybrane województwa: test",
+      mode: "voivodeshipsTest" as const,
+    },
+    {
+      key: 4,
+      text: "wybrane województwa: losowo",
+      mode: "voivodeshipsRandom" as const,
+    },
+  ];
+
   return (
-    <div className="min-h-screen w-full bg-violet-50 flex flex-col justify-center items-center px-4 py-8">
-      <section className="w-full flex justify-center mb-12">
+    <div className="h-screen w-screen bg-violet-50">
+      <section className="flex justify-center pt-2">
         <MainPageBanner />
       </section>
-
-      <section className="w-full max-w-md flex flex-col items-center">
-        <h1 className="text-4xl md:text-5xl font-bold mb-8 text-violet-700 text-center">
-          Wybierz tryb gry
-        </h1>
-        <button
-          onClick={props.onStartGame}
-          className="w-full text-2xl mt-4 md:text-3xl uppercase font-bold px-6 py-4 bg-violet-400 hover:bg-violet-500 active:scale-95 transition-all rounded-2xl text-white shadow-lg cursor-pointer"
-        >
-          wszystkie losowo
-        </button>
-        <button
-          onClick={props.onStartGame}
-          className="w-full text-2xl mt-4 md:text-3xl uppercase font-bold px-6 py-4 bg-violet-400 hover:bg-violet-500 active:scale-95 transition-all rounded-2xl text-white shadow-lg cursor-pointer"
-        >
-          wszystkie po kolei
-        </button>
-        <button
-          onClick={props.onStartGame}
-          className="w-full text-2xl mt-4 md:text-3xl uppercase font-bold px-6 py-4 bg-violet-400 hover:bg-violet-500 active:scale-95 transition-all rounded-2xl text-white shadow-lg cursor-pointer"
-        >
-          wYbrane wojewodztwa losowo
-        </button>
-        <button
-          onClick={props.onStartGame}
-          className="w-full text-2xl mt-4 md:text-3xl uppercase font-bold px-6 py-4 bg-violet-400 hover:bg-violet-500 active:scale-95 transition-all rounded-2xl text-white shadow-lg cursor-pointer"
-        >
-          wybrane wojewodztwa po kolei
-        </button>
+      <section className="flex items-center justify-center">
+        <div className="bg-violet-200d rounded-xl p-8">
+          <h1 className="text-7xl my-16 text-violet-700 text-center">
+            Wybierz tryb gry
+          </h1>
+          {links.map((btn) => (
+            <button
+              key={btn.key}
+              onClick={() => onSelectMode(btn.mode)}
+              className="block text-4xl uppercase px-2 py-1 my-4 w-full bg-violet-400 hover:bg-violet-300 rounded-xl text-center text-violet-50 cursor-pointer"
+            >
+              {btn.text}
+            </button>
+          ))}
+        </div>
       </section>
     </div>
   );
 }
-
